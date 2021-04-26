@@ -27,3 +27,7 @@ Xcode-select --install
 解决办法：在Application加上@ComponentScan(basePackages = {"业务模块包名/org.springblade.*"})或者重新rebuild project
 
 产生原因：@Component的fallback实例扫描不到，Spring boot默认只扫描Application同级目录，但是业务模块包名不一致
+
+# git命令使用时，中文显示为数字
+
+解决办法：**git config --global core.quotepath false**
