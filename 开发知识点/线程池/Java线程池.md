@@ -226,11 +226,99 @@ CPU 密集型简单理解就是利用 CPU 计算能力的任务比如你在内�
 
 
 
+# 线程池的使用场景
+
+1. 当有多个互不干扰的耗时任务（任务可以是做一样的事）
+
+2. 不使用线程池，任务执行就会顺序执行，看图。
+
+   ![屏幕快照 2021-04-26 下午2.48.29](https://tva1.sinaimg.cn/large/008i3skNly1gpx5c4cowvj30j9041gll.jpg)
+
+3. 使用线程池，任务可以并行执行，看图。
+
+   ![屏幕快照 2021-04-26 下午2.50.50](https://tva1.sinaimg.cn/large/008i3skNly1gpx5e0817hj30ih08kaae.jpg)
 
 
 
+# 线程池最佳实践
 
+- 使用ThreadPoolExecutor构造函数创建线程池。
 
+- 监测线程池运行状态：使用ThreadPoolExecutor的API做一个简陋的监测Demo。printThreadPoolStatus()会每隔一秒打印线程池的线程数、活跃线程数、完成的任务数、积极任务队列中的任务数。见下代码块。
+
+  ```java
+  /**
+       * 打印线程池的状态
+       *
+       * @param threadPool 线程池对象
+       */
+      public static void printThreadPoolStatus(ThreadPoolExecutor threadPool) {
+          ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(1, createThreadFactory("print-images/thread-pool-status", false));
+          scheduledExecutorService.scheduleAtFixedRate(() -> {
+              log.info("=========================");
+              log.info("ThreadPool Size: [{}]", threadPool.getPoolSize());
+              log.info("Active Threads: {}", threadPool.getActiveCount());
+              log.info("Number of Tasks : {}", threadPool.getCompletedTaskCount());
+              log.info("Number of Tasks in Queue: {}", threadPool.getQueue().size());
+              log.info("=========================");
+          }, 0, 1, TimeUnit.SECONDS);
+      }
+  
+  ```
+
+- 建议不同类别业务使用不同线程池
+
+  - 为什么要这样做？
+
+  - 答：可能造成死锁。比如线程池核心线程为n，存在父任务数n，父任务包含两个子任务，当其中子任务1完成，父任务占用了核心线程资源，子任务2就会阻塞在任务队列中，但父任务只有在子任务执行完才能执行，所以就产生了死锁。看图更容易理解。
+
+    ![屏幕快照 2021-04-26 下午4.06.59](https://tva1.sinaimg.cn/large/008i3skNly1gpx7l9ypelj30jq0g70tv.jpg)
+
+- 记得给线程池命名：默认创建的线程命名为pool-1-thread-n，不利于定位我们的问题。以下是两种线程命名方式
+
+  - 利用guava的ThreadFactoryBuilder(java8后删除了该类，改成Executors.defaultThreadFactory()创建默认参数的ThreadFactory)：
+
+  ```java
+  ThreadFactory threadFactory = new ThreadFactoryBuilder()
+                          .setNameFormat(threadNamePrefix + "-%d")
+                          .setDaemon(true).build();
+  ExecutorService threadPool = new ThreadPoolExecutor(corePoolSize, maximumPoolSize, keepAliveTime, TimeUnit.MINUTES, workQueue, threadFactory)
+  ```
+
+  - 自己实现ThreadFactory(见src目录下MyThreadFactory文件夹，在RunnableDemo测试)
+
+    ```java
+    import java.util.concurrent.Executors;
+    import java.util.concurrent.ThreadFactory;
+    import java.util.concurrent.atomic.AtomicInteger;
+    /**
+     * 线程工厂，它设置线程名称，有利于我们定位问题。
+     */
+    public final class NamingThreadFactory implements ThreadFactory {
+    
+        private final AtomicInteger threadNum = new AtomicInteger();
+        private final ThreadFactory delegate;
+        private final String name;
+    
+        /**
+         * 创建一个带名字的线程池生产工厂
+         */
+        public NamingThreadFactory(ThreadFactory delegate, String name) {
+            this.delegate = delegate;
+            this.name = name; // TODO consider uniquifying this
+        }
+    
+        @Override 
+        public Thread newThread(Runnable r) {
+            Thread t = delegate.newThread(r);
+            t.setName(name + " [#" + threadNum.incrementAndGet() + "]");
+            return t;
+        }
+    
+    }
+    ```
+
+    
 
 
 
