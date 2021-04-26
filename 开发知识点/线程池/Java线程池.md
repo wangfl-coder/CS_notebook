@@ -176,3 +176,61 @@
   ```
 
 - 不推荐原因：因为maximumPoolSize是Integer.MAX_VALUE，当队列已满，又有不断的新任务，就会造成大量新建线程，造成OOM。
+
+### ScheduledThreadPoolExecutor
+
+主要用来在给定的延迟后运行任务，或者定期运行任务（任务调度）。在实际项目中基本不会用到，一般会有更好的方案比如quarts。
+
+- 简介：ScheduledThreadPoolExecutor使用的任务队列DelayQueue封装了一个PriorityQueue。PriorityQueue会对队列中任务进行排序，执行所需时间短的放前面先被执行（ScheduledFutureTask的time变量小的）。如果执行所需时间相同则将先提交的放前面先执行（ScheduledFutureTask的squenceNumber小的。
+
+- ScheduledThreadPoolExecutor和Timer的比较（JDK1.5之后，没有理由用Timer任务调度）：
+
+  - `Timer` 对系统时钟的变化敏感，`ScheduledThreadPoolExecutor`不是；
+  - `Timer` 只有一个执行线程，因此长时间运行的任务可以延迟其他任务。 `ScheduledThreadPoolExecutor` 可以配置任意数量的线程。 此外，如果你想（通过提供 ThreadFactory），你可以完全控制创建的线程;
+  - 在`TimerTask` 中抛出的运行时异常会杀死一个线程，从而导致 `Timer` 死机:-( ...即计划任务将不再运行。`ScheduledThreadExecutor` 不仅捕获运行时异常，还允许您在需要时处理它们（通过重写 `afterExecute` 方法`ThreadPoolExecutor`）。抛出异常的任务将被取消，但其他任务将继续运行。
+
+- 运行过程图：![屏幕快照 2021-04-26 上午10.35.08](https://tva1.sinaimg.cn/large/008i3skNly1gpwxzyezizj30qi0fmtbd.jpg)
+
+- ScheduledThreadPoolExecutor执行分为两个部分：
+
+  - 当ScheduledThreadPoolExecutor调用scheduleAtFixedRate()或者scheduleWithFixedDelay()方法时，将会把实现RunnableScheduledFuture接口的ScheduledFutureTask任务添加到DelayQueue任务队列中。
+  - 线程池从任务队列中取任务并执行。
+
+- 实现周期行执行任务，ScheduledThreadPoolExecutor做了一下修改：
+
+  - 使用DelayQueue作为任务队列
+  - 获取任务的方式不同
+  - 执行周期任务时，会有额外的处理。
+
+- 执行周期性任务过程图
+
+  ![屏幕快照 2021-04-26 上午11.20.38](https://tva1.sinaimg.cn/large/008i3skNly1gpwzb8qywqj30gt0bxtbh.jpg)
+
+  1. 从DelayQueue中获取过期任务DelayQueue.take()，过期任务是time变量大于当前系统时间
+  2. 执行任务
+  3. 修改任务time，即下次执行的时间
+  4. 添加任务到DelayQueue
+
+## 线程池大小确定
+
+线程池设置太小会不够用，如果同一时间内有大量任务就会产生OOM；设置太高会增加上下文切换的成本，上下文切换指的是在不同时间片运行不同线程，因为CPU核数有限，如果线程数量远大于核数CPU就会频繁的在线程间切换，就会增加任务的执行时间。
+
+有一个简单并且适用面比较广的公式：
+
+- **CPU 密集型任务(N+1)：** 这种任务消耗的主要是 CPU 资源，可以将线程数设置为 N（CPU 核心数）+1，比 CPU 核心数多出来的一个线程是为了防止线程偶发的缺页中断，或者其它原因导致的任务暂停而带来的影响。一旦任务暂停，CPU 就会处于空闲状态，而在这种情况下多出来的一个线程就可以充分利用 CPU 的空闲时间。
+- **I/O 密集型任务(2N)：** 这种任务应用起来，系统会用大部分的时间来处理 I/O 交互，而线程在处理 I/O 的时间段内不会占用 CPU 来处理，这时就可以将 CPU 交出给其它线程使用。因此在 I/O 密集型任务的应用中，我们可以多配置一些线程，具体的计算方法是 2N。
+
+**如何判断是 CPU 密集任务还是 IO 密集任务？**
+
+CPU 密集型简单理解就是利用 CPU 计算能力的任务比如你在内存中对大量数据进行排序。单凡涉及到网络读取，文件读取这类都是 IO 密集型，这类任务的特点是 CPU 计算耗费时间相比于等待 IO 操作完成的时间来说很少，大部分时间都花在了等待 IO 操作完成上。
+
+
+
+
+
+
+
+
+
+
+
