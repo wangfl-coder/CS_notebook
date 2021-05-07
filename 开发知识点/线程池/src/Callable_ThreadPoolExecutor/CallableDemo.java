@@ -33,10 +33,10 @@ public class CallableDemo {
                 e.printStackTrace();
             }
         }
+	//关闭线程池
+	executor.shutdown();
         while (!executor.isTerminated()){
         }
-        //关闭线程池
-        executor.shutdown();
 
     }
 }
