@@ -85,7 +85,7 @@
 
 ### shutdown vs shutdownNow
 
-- 区别：shutdown关闭线程池，状态为SHUTDOWN，线程池不会接受新任务，但是队列里任务必须执行完。shutdownNow是关闭线程池，状态变为STOP，且停止当前正在执行的任务，返回带执行任务List。
+- 区别：shutdown关闭线程池，状态为SHUTDOWN，线程池不会接受新任务，但是队列里任务必须执行完。shutdownNow是关闭线程池，状态变为STOP，且停止当前正在执行的任务，返回在执行任务List。
 
 ### isTerminated vs isShutdown
 
