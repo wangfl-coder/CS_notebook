@@ -2,6 +2,10 @@
 
 sh startup.sh -m standalone
 
+# Redis启动/关闭
+
+redis-server redis.conf /  redis-cli shutdown
+
 # Feign方法调用，参数为null
 
 参数必须加上注解，比如参数不需要绑定就required=false
